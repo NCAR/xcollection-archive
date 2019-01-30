@@ -1,0 +1,41 @@
+
+analysis_recipes:
+  monclim:
+    description: compute monthly climatology
+    file_format: nc
+    operators:
+      - !operator
+        applied_method: 'time:clim_mon'
+        module: esmlab.climatology
+        function: compute_mon_climatology
+        kwargs: {}
+
+
+data_sources:
+  cesm:
+    applied_methods: None
+    grid: POP_gx1v7
+
+  woa2013_monclim:
+    applied_methods: ['time:clim_mon']
+    grid: POP_gx1v7
+    dirin: /glade/work/mclong/woa2013v2/POP_gx1v7
+
+# derived_variables:
+#   pCFC11:
+#     methods:
+#       - !operator
+#         applied_method: None
+#         module: pop_util
+#         function: derive_var_pCFC11
+#         kwargs: {}
+#     vars_dependent: [CFC11, TEMP, SALT]
+#
+#   MLD_03:
+#     methods:
+#       - !operator
+#         applied_method: None
+#         module: pop_util
+#         function: derive_var_MLD
+#         kwargs: {'Dsigma': 0.03}
+#     vars_dependent: [TEMP, SALT]
