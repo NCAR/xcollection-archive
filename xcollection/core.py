@@ -304,8 +304,4 @@ class analyzed_datasource(object):
             return dsi
 
     def _unfixtime(self, dsi):
-        tb_name, tb_dim = esmlab.utils.time_bound_var(dsi)
-        if tb_name and tb_dim:
-            return esmlab.utils.uncompute_time_var(dsi, tb_name, tb_dim)
-        else:
-            return dsi
+        return esmlab.utils.uncompute_time_var(dsi)
