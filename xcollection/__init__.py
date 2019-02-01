@@ -1,6 +1,6 @@
-import importlib
+"""Top-level package for xcollection."""
 
-from . core import datasource
-from . core import analyzed_datasource
+from ._version import get_versions
 
-importlib.reload(core)
+__version__ = get_versions()["version"]
+del get_versions

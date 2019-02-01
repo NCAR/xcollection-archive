@@ -1,0 +1,6 @@
+[run]
+omit = 
+    tests/*.py
+    xcollection/_version.py
+    versioneer.py
+    setup.py
