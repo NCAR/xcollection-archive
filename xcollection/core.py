@@ -152,7 +152,7 @@ class analyzed_collection(object):
                 year_offset = query_results.year_offset.unique()[0]
 
                 # TODO: this is not implemented upstream in xcollection
-                if applied_methods in query_results:
+                if "applied_methods" in query_results:
                     applied_methods = query_results.applied_methods.unique()[0].split(',')
                 else:
                     applied_methods = []
