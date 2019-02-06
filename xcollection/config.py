@@ -7,6 +7,11 @@ from __future__ import absolute_import, print_function
 import os
 import yaml
 
+if 'USER' in os.environ:
+    USER = os.environ['USER']
+else:
+    USER = "unknown-user"
+
 CACHE_DIRECTORY = "cache_directory"
 
 _config_dir = os.path.join(os.path.expanduser("~"), ".xcollection")

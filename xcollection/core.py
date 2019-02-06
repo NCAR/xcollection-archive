@@ -16,7 +16,7 @@ import yaml
 import esmlab
 import intake
 
-from .config import SETTINGS
+from .config import SETTINGS, USER
 
 logging.basicConfig(level=logging.DEBUG)
 
