@@ -129,9 +129,8 @@ class analyzed_collection(object):
         """Process data"""
 
         query = dict(self.catalog.query)
-
-        ensembles = query_results.ensemble.unique()
-        variables = query_results.variable.unique()
+        ensembles = self.catalog.results.ensemble.unique()
+        variables = self.catalog.results.variable.unique()
 
         self.cache_files = []
         for ens_i in ensembles:
