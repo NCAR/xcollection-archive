@@ -1,25 +1,24 @@
 from __future__ import absolute_import, division, print_function
 
+import os
 import importlib
 import logging
-import os
+
 from datetime import datetime
 from subprocess import check_call
+from tqdm import tqdm
 
-import esmlab
 import numpy as np
 import pandas as pd
 import xarray as xr
 import yaml
 
-logging.basicConfig(level=logging.INFO)
+import esmlab
+import intake
 
+from .config import SETTINGS
 
-# config
-USER = os.environ["USER"]
-dirout = f"/glade/scratch/{USER}/calcs/processed_collections"
-if not os.path.exists(dirout):
-    os.makedirs(dirout)
+logging.basicConfig(level=logging.DEBUG)
 
 
 class yaml_operator(yaml.YAMLObject):
@@ -53,94 +52,6 @@ class yaml_operator(yaml.YAMLObject):
         )
 
 
-class datasource(object):
-    """
-    An object describing a datasource for incorporation in a analysis.
-
-    Attributes
-    ----------
-    name : string
-           Name of the object
-
-    variables : array-like
-                List of variables
-
-    ensembles : array-like
-                List of ensembles in datasource, defaults to `[0]`
-
-    applied_methods : array-like
-                     List of methods applied to dataset
-
-    year_offset : int
-                  Integer year offset to align calendar
-                  (i.e. adjusted_time = time + year_offset)
-
-    """
-
-    def __init__(self, name, data_descriptor):
-        """
-        Instantiate datasource object.
-
-        Parameters
-        ----------
-        name : string
-               The name of this datasource
-
-        data_descriptor : dict or pandas.DataFrame
-                          A dictionary where the keys are data attributes
-                          and each entry is a list; can also be
-                          a pandas.DataFrame.
-        """
-
-        if isinstance(data_descriptor, dict):
-            data_descriptor = pd.DataFrame(data_descriptor)
-
-        self.name = name
-        self.variables = data_descriptor.variable.unique()
-
-        if "ensemble" in data_descriptor:
-            self.ensembles = data_descriptor.ensemble.unique()
-        else:
-            self.ensembles = [0]
-
-        if "applied_methods" in data_descriptor:
-            self.applied_methods = data_descriptor.applied_methods.unique()
-        else:
-            self.applied_methods = []
-
-        if "year_offset" in data_descriptor:
-            self.year_offset = data_descriptor.year_offset.unique()[0]
-        else:
-            self.year_offset = np.nan
-
-        # generate file groups
-        self.files = dict()
-        self.attrs = dict()
-        for ens_i in self.ensembles:
-            self.files[ens_i] = dict()
-            self.attrs[ens_i] = dict()
-            for var_i in self.variables:
-                query = data_descriptor.variable == var_i
-                if "ensemble" in data_descriptor:
-                    query = query & (data_descriptor.ensemble == ens_i)
-
-                data_loc = data_descriptor.loc[query]
-                files = (
-                    data_loc.files.tolist()
-                )  # relying on ordered list in data passed
-                if not files:
-                    raise ValueError(f"no files for ensemble={ens_i}, variable={var_i}")
-                self.files[ens_i][var_i] = files
-                self.attrs[ens_i][var_i] = {
-                    key: data_loc[key].tolist()
-                    for key in data_loc
-                    if key not in ["files", "variable", "ensemble"]
-                }
-
-    def __repr__(self):
-        return repr(self.__dict__)
-
-
 class analysis(object):
     """
     A class to define and run an analysis.
@@ -148,6 +59,7 @@ class analysis(object):
 
     def __init__(self, **kwargs):
 
+        self.name = kwargs.pop("name")
         self.description = kwargs.pop("description", None)
         self.operators = kwargs.pop("operators", None)
         self.sel_kwargs = kwargs.pop("sel_kwargs", None)
@@ -178,48 +90,72 @@ class analysis(object):
         return repr(self.__dict__)
 
 
-class analyzed_datasource(object):
+class analyzed_collection(object):
     """
     Run an analysis.
     """
 
     def __init__(
         self,
-        analysis_name,
+        collection,
         analysis_recipe,
-        datasource,
-        clobber_cache=False,
+        analysis_name=None,
+        overwrite_existing=False,
         file_format="nc",
+        **query,
     ):
 
-        self.analysis_name = analysis_name
+        self.catalog = intake.open_cesm_metadatastore(collection).col.search(**query)
         self.analysis = analysis(**analysis_recipe)
-        self.datasource = datasource
         self.applied_methods = []
+        self.cache_directory = SETTINGS["cache_directory"]
 
-        self.file_format = file_format
-        if self.file_format not in ["nc", "zarr"]:
+        if file_format not in ["nc", "zarr"]:
             raise ValueError(f"unknown file format: {file_format}")
+        self.file_format = file_format
 
-        self._run_analysis(clobber_cache=clobber_cache)
+        self._set_analysis_name(analysis_name)
 
-    def _run_analysis(self, clobber_cache):
+        self._run_analysis(overwrite_existing=overwrite_existing)
+
+    def _set_analysis_name(self, analysis_name):
+        if not analysis_name:
+            self.name = self.catalog._name + "-" + self.analysis.name
+        else:
+            self.name = analysis_name
+
+    def _run_analysis(self, overwrite_existing):
         """Process data"""
 
-        self.cache_files = []
-        for ens_i in self.datasource.ensembles:
+        query = dict(self.catalog.query)
 
-            cache_file = self._set_cache_file(ens_i, clobber_cache)
+        ensembles = query_results.ensemble.unique()
+        variables = query_results.variable.unique()
+
+        self.cache_files = []
+        for ens_i in ensembles:
+            query["ensemble"] = ens_i
+
+            cache_file = self._set_cache_file(ens_i, overwrite_existing)
             self.cache_files.append(cache_file)
 
             if os.path.exists(cache_file):
                 continue
 
             dsi = xr.Dataset()
-            for var_i in self.datasource.variables:
-                files = self.datasource.files[ens_i][var_i]
-                # attrs = self.datasource.attrs[ens_i][var_i]
-                year_offset = self.datasource.year_offset
+            for var_i in variables:
+                query["variable"] = var_i
+
+                query_results = self._get_subset(query).files.tolist()
+
+                files = query_results.files.tolist()
+                year_offset = query_results.year_offset.unique()[0]
+
+                # TODO: this is not implemented upstream in xcollection
+                if applied_methods in query_results:
+                    applied_methods = query_results.applied_methods.unique()[0].split(',')
+                else:
+                    applied_methods = []
 
                 dsi = xr.merge(
                     (
@@ -236,12 +172,33 @@ class analyzed_datasource(object):
 
             # apply the analysis
             dso = self._fixtime(dsi, year_offset)
-            dso, applied_methods = self.analysis(dso, self.datasource.applied_methods)
+            dso, applied_methods = self.analysis(dso, applied_methods)
             self.applied_methods.append(applied_methods)
             dso = self._unfixtime(dso)
 
             # write cache file
             self._write_cache_file(cache_file, dso)
+
+    def _get_subset(self, query):
+        """ Get a subset of collection entries that match a query """
+        df = self.catalog.results
+
+        condition = np.ones(len(df), dtype=bool)
+
+        for key, val in query.items():
+
+            if isinstance(val, list):
+                condition_i = np.zeros(len(df), dtype=bool)
+                for val_i in val:
+                    condition_i = condition_i | (df[key] == val_i)
+                condition = condition & condition_i
+
+            elif val is not None:
+                condition = condition & (df[key] == val)
+
+        query_results = df.loc[condition].sort_values(by=["sequence_order", "files"], ascending=True)
+
+        return query_results
 
     def to_xarray(self):
         """Load the cached data."""
@@ -263,20 +220,19 @@ class analyzed_datasource(object):
 
         return ds
 
-    def _set_cache_file(self, ensemble, clobber_cache):
+    def _set_cache_file(self, ensemble, overwrite_existing):
 
         cache_file = ".".join(
             [
-                self.datasource.name,
+                self.name,
                 "%03d" % ensemble,
-                self.analysis_name,
                 self.file_format,
             ]
         )
 
-        cache_file = os.path.join(dirout, cache_file)
+        cache_file = os.path.join(self.cache_directory, cache_file)
 
-        if os.path.exists(cache_file) and clobber_cache:
+        if os.path.exists(cache_file) and overwrite_existing:
             logging.info(f"removing old {cache_file}")
             check_call(["rm", "-fr", cache_file])
 
@@ -288,10 +244,6 @@ class analyzed_datasource(object):
            - switch method based on file extension
         """
 
-        if not os.path.exists(dirout):
-            logging.info(f"creating {dirout}")
-            os.makedirs(dirout)
-
         if os.path.exists(cache_file):
             logging.info(f"removing old {cache_file}")
             check_call(["rm", "-fr", cache_file])  # zarr files are directories
@@ -301,10 +253,10 @@ class analyzed_datasource(object):
         time_string = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         dsattrs = {
             "history": f"created by {USER} on {time_string}",
-            "analysis_name": self.analysis_name,
-            "analysis": repr(self.analysis),
-            "applied_methods": repr(self.applied_methods),
-            "datasource": repr(self.datasource),
+            "xcollection_name": self.name,
+            "xcollection_analysis_name": self.analysis_name,
+            "xcollection_analysis": repr(self.analysis),
+            "xcollection_applied_methods": repr(self.applied_methods)
         }
 
         ds.attrs.update(dsattrs)
