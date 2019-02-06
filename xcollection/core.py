@@ -254,7 +254,6 @@ class analyzed_collection(object):
         dsattrs = {
             "history": f"created by {USER} on {time_string}",
             "xcollection_name": self.name,
-            "xcollection_analysis_name": self.analysis_name,
             "xcollection_analysis": repr(self.analysis),
             "xcollection_applied_methods": repr(self.applied_methods)
         }
