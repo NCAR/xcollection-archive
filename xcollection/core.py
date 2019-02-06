@@ -146,7 +146,7 @@ class analyzed_collection(object):
             for var_i in variables:
                 query["variable"] = var_i
 
-                query_results = self._get_subset(query).files.tolist()
+                query_results = self._get_subset(query)
 
                 files = query_results.files.tolist()
                 year_offset = query_results.year_offset.unique()[0]
