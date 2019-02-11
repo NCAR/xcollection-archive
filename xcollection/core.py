@@ -104,7 +104,6 @@ class analyzed_collection(object):
         analysis_recipe,
         analysis_name=None,
         overwrite_existing=False,
-        parallel=True,
         file_format="nc",
         **query,
     ):
@@ -121,8 +120,7 @@ class analyzed_collection(object):
 
         self._set_analysis_name(analysis_name)
 
-        self._run_analysis(parallel=parallel,
-                           overwrite_existing=overwrite_existing)
+        self._run_analysis(overwrite_existing=overwrite_existing)
 
     def _set_analysis_name(self, analysis_name):
         if not analysis_name:
@@ -130,7 +128,7 @@ class analyzed_collection(object):
         else:
             self.name = analysis_name
 
-    def _run_analysis(self, parallel, overwrite_existing):
+    def _run_analysis(self, overwrite_existing):
         """Process data"""
 
         query = dict(self.catalog.query)
@@ -148,18 +146,8 @@ class analyzed_collection(object):
             if os.path.exists(cache_file):
                 continue
 
-            if parallel:
-                results.append(
-                    dask.delayed(
-                        self._run_analysis_one_ensemble)(
-                        query,
-                        variables,
-                        cache_file))
-            else:
-                self._run_analysis_one_ensemble(query, variables, cache_file)
+            self._run_analysis_one_ensemble(query, variables, cache_file)
 
-        if parallel:
-            dask.compute(results)
 
     def _run_analysis_one_ensemble(self, query, variables, cache_file):
 
@@ -171,6 +159,8 @@ class analyzed_collection(object):
 
             query_results = self._get_subset(query_v)
 
+            # TODO: Check that this query is amenable to concatenation
+            
             files = query_results.files.tolist()
             year_offset = query_results.year_offset.unique()[0]
 
@@ -188,6 +178,7 @@ class analyzed_collection(object):
                         decode_times=False,
                         decode_coords=False,
                         data_vars=[var_i],
+                        parallel=True,
                         chunks={"time": 1},
                     ),
                 )
