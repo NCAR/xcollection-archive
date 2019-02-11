@@ -1,17 +1,19 @@
 from __future__ import absolute_import, division, print_function
 
 import os
+from subprocess import check_call
 import importlib
+import yaml
+
 import logging
 
 from datetime import datetime
-from subprocess import check_call
 from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
 import xarray as xr
-import yaml
+import dask
 
 import esmlab
 import intake
@@ -20,6 +22,7 @@ from .config import SETTINGS, USER
 
 logger = logging.getLogger(__name__)
 logger.basicConfig(level=logging.DEBUG)
+
 
 class yaml_operator(yaml.YAMLObject):
     """A wrapper used for defining callable functions in YAML.
@@ -101,6 +104,7 @@ class analyzed_collection(object):
         analysis_recipe,
         analysis_name=None,
         overwrite_existing=False,
+        parallel=True,
         file_format="nc",
         **query,
     ):
@@ -117,7 +121,8 @@ class analyzed_collection(object):
 
         self._set_analysis_name(analysis_name)
 
-        self._run_analysis(overwrite_existing=overwrite_existing)
+        self._run_analysis(parallel=parallel,
+                           overwrite_existing=overwrite_existing)
 
     def _set_analysis_name(self, analysis_name):
         if not analysis_name:
@@ -125,7 +130,7 @@ class analyzed_collection(object):
         else:
             self.name = analysis_name
 
-    def _run_analysis(self, overwrite_existing):
+    def _run_analysis(self, parallel, overwrite_existing):
         """Process data"""
 
         query = dict(self.catalog.query)
@@ -133,6 +138,7 @@ class analyzed_collection(object):
         variables = self.catalog.results.variable.unique()
 
         self.cache_files = []
+        results = []
         for ens_i in ensembles:
             query["ensemble"] = ens_i
 
@@ -142,42 +148,56 @@ class analyzed_collection(object):
             if os.path.exists(cache_file):
                 continue
 
-            dsi = xr.Dataset()
-            for var_i in variables:
-                query["variable"] = var_i
+            if parallel:
+                results.append(dask.delayed(
+                    self._run_analysis_one_ensemble)(
+                    query, variables, cache_file))
+            else:
+                self._run_analysis_one_ensemble(query, variables, cache_file)
 
-                query_results = self._get_subset(query)
+        if parallel:
+            dask.compute(results)
 
-                files = query_results.files.tolist()
-                year_offset = query_results.year_offset.unique()[0]
+    def _run_analysis_one_ensemble(self, query, variables, cache_file):
 
-                # TODO: this is not implemented upstream in intake-cesm
-                if "applied_methods" in query_results:
-                    applied_methods = query_results.applied_methods.unique()[0].split(',')
-                else:
-                    applied_methods = []
+        query_v = dict(query)
 
-                dsi = xr.merge(
-                    (
-                        dsi,
-                        xr.open_mfdataset(
-                            files,
-                            decode_times=False,
-                            decode_coords=False,
-                            data_vars=[var_i],
-                            chunks={"time": 1},
-                        ),
-                    )
+        dsi = xr.Dataset()
+        for var_i in variables:
+            query_v["variable"] = var_i
+
+            query_results = self._get_subset(query_v)
+
+            files = query_results.files.tolist()
+            year_offset = query_results.year_offset.unique()[0]
+
+            # TODO: this is not implemented upstream in intake-cesm
+            if "applied_methods" in query_results:
+                applied_methods = query_results.applied_methods.unique()[0].split(',')
+            else:
+                applied_methods = []
+
+            dsi = xr.merge(
+                (
+                    dsi,
+                    xr.open_mfdataset(
+                        files,
+                        decode_times=False,
+                        decode_coords=False,
+                        data_vars=[var_i],
+                        chunks={"time": 1},
+                    ),
                 )
+            )
 
-            # apply the analysis
-            dso = self._fixtime(dsi, year_offset)
-            dso, applied_methods = self.analysis(dso, applied_methods)
-            self.applied_methods.append(applied_methods)
-            dso = self._unfixtime(dso)
+        # apply the analysis
+        dso = self._fixtime(dsi, year_offset)
+        dso, applied_methods = self.analysis(dso, applied_methods)
+        self.applied_methods.append(applied_methods)
+        dso = self._unfixtime(dso)
 
-            # write cache file
-            self._write_cache_file(cache_file, dso)
+        # write cache file
+        self._write_cache_file(cache_file, dso)
 
     def _get_subset(self, query):
         """ Get a subset of collection entries that match a query """
@@ -196,7 +216,8 @@ class analyzed_collection(object):
             elif val is not None:
                 condition = condition & (df[key] == val)
 
-        query_results = df.loc[condition].sort_values(by=["sequence_order", "files"], ascending=True)
+        query_results = df.loc[condition].sort_values(
+            by=["sequence_order", "files"], ascending=True)
 
         return query_results
 
