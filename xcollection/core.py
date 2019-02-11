@@ -18,8 +18,8 @@ import intake
 
 from .config import SETTINGS, USER
 
-logging.basicConfig(level=logging.DEBUG)
-
+logger = logging.getLogger(__name__)
+logger.basicConfig(level=logging.DEBUG)
 
 class yaml_operator(yaml.YAMLObject):
     """A wrapper used for defining callable functions in YAML.
@@ -69,17 +69,17 @@ class analysis(object):
         computed_dset = dset.copy()
 
         if self.sel_kwargs:
-            logging.info(f"applying sel_kwargs: {self.sel_kwargs}")
+            logger.info(f"applying sel_kwargs: {self.sel_kwargs}")
             computed_dset = computed_dset.sel(**self.sel_kwargs)
 
         if self.isel_kwargs:
-            logging.info(f"applying isel_kwargs: {self.isel_kwargs}")
+            logger.info(f"applying isel_kwargs: {self.isel_kwargs}")
             computed_dset = computed_dset.isel(**self.isel_kwargs)
 
         applied_methods = []
         for op in self.operators:
             if op.applied_method not in dsrc_applied_methods:
-                logging.info(f"applying operator: {op}")
+                logger.info(f"applying operator: {op}")
                 computed_dset = op(computed_dset)
                 if op.applied_method:
                     applied_methods.append(op.applied_method)
@@ -151,7 +151,7 @@ class analyzed_collection(object):
                 files = query_results.files.tolist()
                 year_offset = query_results.year_offset.unique()[0]
 
-                # TODO: this is not implemented upstream in xcollection
+                # TODO: this is not implemented upstream in intake-cesm
                 if "applied_methods" in query_results:
                     applied_methods = query_results.applied_methods.unique()[0].split(',')
                 else:
@@ -233,7 +233,7 @@ class analyzed_collection(object):
         cache_file = os.path.join(self.cache_directory, cache_file)
 
         if os.path.exists(cache_file) and overwrite_existing:
-            logging.info(f"removing old {cache_file}")
+            logger.info(f"removing old {cache_file}")
             check_call(["rm", "-fr", cache_file])
 
         return cache_file
@@ -245,7 +245,7 @@ class analyzed_collection(object):
         """
 
         if os.path.exists(cache_file):
-            logging.info(f"removing old {cache_file}")
+            logger.info(f"removing old {cache_file}")
             check_call(["rm", "-fr", cache_file])  # zarr files are directories
             # how to remove files and directories
             # with os package?
@@ -260,7 +260,7 @@ class analyzed_collection(object):
 
         ds.attrs.update(dsattrs)
 
-        logging.info(f"writing {cache_file}")
+        logger.info(f"writing {cache_file}")
         if self.file_format == "nc":
             ds.to_netcdf(cache_file)
 
