@@ -21,7 +21,7 @@ import intake
 from .config import SETTINGS, USER
 
 logger = logging.getLogger(__name__)
-logger.basicConfig(level=logging.DEBUG)
+logger.setLevel(level=logging.INFO)
 
 
 class yaml_operator(yaml.YAMLObject):
@@ -149,9 +149,12 @@ class analyzed_collection(object):
                 continue
 
             if parallel:
-                results.append(dask.delayed(
-                    self._run_analysis_one_ensemble)(
-                    query, variables, cache_file))
+                results.append(
+                    dask.delayed(
+                        self._run_analysis_one_ensemble)(
+                        query,
+                        variables,
+                        cache_file))
             else:
                 self._run_analysis_one_ensemble(query, variables, cache_file)
 
