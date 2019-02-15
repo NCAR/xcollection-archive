@@ -28,6 +28,7 @@ dependencies:
   - esmpy
   - intake-xarray
   - intake
+  - tqdm
   - pip:
     - sphinx_copybutton
     - git+https://github.com/NCAR/esmlab.git
