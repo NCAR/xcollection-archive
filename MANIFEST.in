@@ -1,5 +1,9 @@
-include AUTHORS.rst
 include CONTRIBUTING.rst
-include HISTORY.rst
 include LICENSE
 include README.rst
+
+recursive-include xcollection *.py
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+include versioneer.py
+include xcollection/_version.py
