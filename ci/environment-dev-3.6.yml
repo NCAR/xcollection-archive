@@ -22,9 +22,9 @@ dependencies:
   - recommonmark 
   - numpydoc
   - nbsphinx
-  - pandoc
   - ipykernel
-  - six
+  - xesmf
+  - esmpy
   - pip:
     - sphinx_copybutton
     - git+https://github.com/NCAR/esmlab.git
