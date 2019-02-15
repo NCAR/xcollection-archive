@@ -1,24 +1,27 @@
 from __future__ import absolute_import, division, print_function
 
 import os
+from subprocess import check_call
 import importlib
+import yaml
+
 import logging
 
 from datetime import datetime
-from subprocess import check_call
 from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
 import xarray as xr
-import yaml
+import dask
 
 import esmlab
 import intake
 
-from .config import SETTINGS
+from .config import SETTINGS, USER
 
-logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+logger.setLevel(level=logging.INFO)
 
 
 class yaml_operator(yaml.YAMLObject):
@@ -69,17 +72,17 @@ class analysis(object):
         computed_dset = dset.copy()
 
         if self.sel_kwargs:
-            logging.info(f"applying sel_kwargs: {self.sel_kwargs}")
+            logger.info(f"applying sel_kwargs: {self.sel_kwargs}")
             computed_dset = computed_dset.sel(**self.sel_kwargs)
 
         if self.isel_kwargs:
-            logging.info(f"applying isel_kwargs: {self.isel_kwargs}")
+            logger.info(f"applying isel_kwargs: {self.isel_kwargs}")
             computed_dset = computed_dset.isel(**self.isel_kwargs)
 
         applied_methods = []
         for op in self.operators:
             if op.applied_method not in dsrc_applied_methods:
-                logging.info(f"applying operator: {op}")
+                logger.info(f"applying operator: {op}")
                 computed_dset = op(computed_dset)
                 if op.applied_method:
                     applied_methods.append(op.applied_method)
@@ -105,7 +108,8 @@ class analyzed_collection(object):
         **query,
     ):
 
-        self.catalog = intake.open_cesm_metadatastore(collection).col.search(**query)
+        col_obj = intake.open_cesm_metadatastore(collection)
+        self.catalog = col_obj.search(**query)
         self.analysis = analysis(**analysis_recipe)
         self.applied_methods = []
         self.cache_directory = SETTINGS["cache_directory"]
@@ -128,11 +132,11 @@ class analyzed_collection(object):
         """Process data"""
 
         query = dict(self.catalog.query)
-
-        ensembles = query_results.ensemble.unique()
-        variables = query_results.variable.unique()
+        ensembles = self.catalog.results.ensemble.unique()
+        variables = self.catalog.results.variable.unique()
 
         self.cache_files = []
+        results = []
         for ens_i in ensembles:
             query["ensemble"] = ens_i
 
@@ -142,42 +146,52 @@ class analyzed_collection(object):
             if os.path.exists(cache_file):
                 continue
 
-            dsi = xr.Dataset()
-            for var_i in variables:
-                query["variable"] = var_i
+            self._run_analysis_one_ensemble(query, variables, cache_file)
 
-                query_results = self._get_subset(query).files.tolist()
 
-                files = query_results.files.tolist()
-                year_offset = query_results.year_offset.unique()[0]
+    def _run_analysis_one_ensemble(self, query, variables, cache_file):
 
-                # TODO: this is not implemented upstream in xcollection
-                if applied_methods in query_results:
-                    applied_methods = query_results.applied_methods.unique()[0].split(',')
-                else:
-                    applied_methods = []
+        query_v = dict(query)
 
-                dsi = xr.merge(
-                    (
-                        dsi,
-                        xr.open_mfdataset(
-                            files,
-                            decode_times=False,
-                            decode_coords=False,
-                            data_vars=[var_i],
-                            chunks={"time": 1},
-                        ),
-                    )
+        dsi = xr.Dataset()
+        for var_i in variables:
+            query_v["variable"] = var_i
+
+            query_results = self._get_subset(query_v)
+
+            # TODO: Check that this query is amenable to concatenation
+            
+            files = query_results.files.tolist()
+            year_offset = query_results.year_offset.unique()[0]
+
+            # TODO: this is not implemented upstream in intake-cesm
+            if "applied_methods" in query_results:
+                applied_methods = query_results.applied_methods.unique()[0].split(',')
+            else:
+                applied_methods = []
+
+            dsi = xr.merge(
+                (
+                    dsi,
+                    xr.open_mfdataset(
+                        files,
+                        decode_times=False,
+                        decode_coords=False,
+                        data_vars=[var_i],
+                        parallel=True,
+                        chunks={"time": 1},
+                    ),
                 )
+            )
 
-            # apply the analysis
-            dso = self._fixtime(dsi, year_offset)
-            dso, applied_methods = self.analysis(dso, applied_methods)
-            self.applied_methods.append(applied_methods)
-            dso = self._unfixtime(dso)
+        # apply the analysis
+        dso = self._fixtime(dsi, year_offset)
+        dso, applied_methods = self.analysis(dso, applied_methods)
+        self.applied_methods.append(applied_methods)
+        dso = self._unfixtime(dso)
 
-            # write cache file
-            self._write_cache_file(cache_file, dso)
+        # write cache file
+        self._write_cache_file(cache_file, dso)
 
     def _get_subset(self, query):
         """ Get a subset of collection entries that match a query """
@@ -196,7 +210,8 @@ class analyzed_collection(object):
             elif val is not None:
                 condition = condition & (df[key] == val)
 
-        query_results = df.loc[condition].sort_values(by=["sequence_order", "files"], ascending=True)
+        query_results = df.loc[condition].sort_values(
+            by=["sequence_order", "files"], ascending=True)
 
         return query_results
 
@@ -233,7 +248,7 @@ class analyzed_collection(object):
         cache_file = os.path.join(self.cache_directory, cache_file)
 
         if os.path.exists(cache_file) and overwrite_existing:
-            logging.info(f"removing old {cache_file}")
+            logger.info(f"removing old {cache_file}")
             check_call(["rm", "-fr", cache_file])
 
         return cache_file
@@ -245,7 +260,7 @@ class analyzed_collection(object):
         """
 
         if os.path.exists(cache_file):
-            logging.info(f"removing old {cache_file}")
+            logger.info(f"removing old {cache_file}")
             check_call(["rm", "-fr", cache_file])  # zarr files are directories
             # how to remove files and directories
             # with os package?
@@ -254,14 +269,13 @@ class analyzed_collection(object):
         dsattrs = {
             "history": f"created by {USER} on {time_string}",
             "xcollection_name": self.name,
-            "xcollection_analysis_name": self.analysis_name,
             "xcollection_analysis": repr(self.analysis),
             "xcollection_applied_methods": repr(self.applied_methods)
         }
 
         ds.attrs.update(dsattrs)
 
-        logging.info(f"writing {cache_file}")
+        logger.info(f"writing {cache_file}")
         if self.file_format == "nc":
             ds.to_netcdf(cache_file)
 
@@ -271,13 +285,13 @@ class analyzed_collection(object):
         return cache_file
 
     def _fixtime(self, dsi, year_offset):
-        tb_name, tb_dim = esmlab.utils.time_bound_var(dsi)
+        tb_name, tb_dim = esmlab.utils._time.time_bound_var(dsi, "time")
         if tb_name and tb_dim:
-            return esmlab.utils.compute_time_var(
-                dsi, tb_name, tb_dim, year_offset=year_offset
+            return esmlab.utils._time.compute_time_var(
+                dsi, tb_name, tb_dim, "time", year_offset=year_offset
             )
         else:
             return dsi
 
     def _unfixtime(self, dsi):
-        return esmlab.utils.uncompute_time_var(dsi)
+        return esmlab.utils._time.uncompute_time_var(dsi, "time")
