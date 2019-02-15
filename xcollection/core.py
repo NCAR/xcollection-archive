@@ -285,7 +285,7 @@ class analyzed_collection(object):
         return cache_file
 
     def _fixtime(self, dsi, year_offset):
-        tb_name, tb_dim = esmlab.utils._time.time_bound_var(dsi, "time")
+        tb_name, tb_dim = esmlab.utils.time.time_bound_var(dsi, "time")
         if tb_name and tb_dim:
             return esmlab.utils._time.compute_time_var(
                 dsi, tb_name, tb_dim, "time", year_offset=year_offset
@@ -294,4 +294,4 @@ class analyzed_collection(object):
             return dsi
 
     def _unfixtime(self, dsi):
-        return esmlab.utils._time.uncompute_time_var(dsi, "time")
+        return esmlab.utils.time.uncompute_time_var(dsi, "time")
