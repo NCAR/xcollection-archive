@@ -1,6 +1,8 @@
 include CONTRIBUTING.rst
 include LICENSE
 include README.rst
+include CHANGELOG.rst
+include requirements.txt
 
 recursive-include xcollection *.py
 recursive-exclude * __pycache__
