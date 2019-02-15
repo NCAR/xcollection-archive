@@ -25,6 +25,8 @@ dependencies:
   - ipykernel
   - xesmf
   - esmpy
+  - intake-xarray
+  - intake
   - pip:
     - sphinx_copybutton
     - git+https://github.com/NCAR/esmlab.git
