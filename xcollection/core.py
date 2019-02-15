@@ -287,7 +287,7 @@ class analyzed_collection(object):
     def _fixtime(self, dsi, year_offset):
         tb_name, tb_dim = esmlab.utils.time.time_bound_var(dsi, "time")
         if tb_name and tb_dim:
-            return esmlab.utils._time.compute_time_var(
+            return esmlab.utils.time.compute_time_var(
                 dsi, tb_name, tb_dim, "time", year_offset=year_offset
             )
         else:
