@@ -1,0 +1,6 @@
+intake
+dask
+xarray
+cftime
+esmlab
+pyyaml
