@@ -105,7 +105,7 @@ class analyzed_collection(object):
         **query,
     ):
 
-        col_obj = intake.open_cesm_metadatastore(collection)
+        col_obj = intake.open_esm_metadatastore(collection_name=collection, collection_type="cesm")
         self.catalog = col_obj.search(**query)
         self.analysis = analysis(**analysis_recipe)
         self.applied_methods = []
@@ -275,13 +275,13 @@ class analyzed_collection(object):
         return cache_file
 
     def _fixtime(self, dsi, year_offset):
-        tb_name, tb_dim = esmlab.utils._time.time_bound_var(dsi, "time")
+        tb_name, tb_dim = esmlab.utils.time.time_bound_var(dsi, "time")
         if tb_name and tb_dim:
-            return esmlab.utils._time.compute_time_var(
+            return esmlab.utils.time.compute_time_var(
                 dsi, tb_name, tb_dim, "time", year_offset=year_offset
             )
         else:
             return dsi
 
     def _unfixtime(self, dsi):
-        return esmlab.utils._time.uncompute_time_var(dsi, "time")
+        return esmlab.utils.time.uncompute_time_var(dsi, "time")
