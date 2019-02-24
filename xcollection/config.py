@@ -5,10 +5,11 @@
 from __future__ import absolute_import, print_function
 
 import os
+
 import yaml
 
-if 'USER' in os.environ:
-    USER = os.environ['USER']
+if "USER" in os.environ:
+    USER = os.environ["USER"]
 else:
     USER = "unknown-user"
 
@@ -20,9 +21,7 @@ _path_config_yml = os.path.join(_config_dir, "config.yml")
 if os.path.exists(".config-xcollection.yml"):
     _path_config_yml = os.path.join(".config-xcollection.yml")
 
-SETTINGS = {
-    CACHE_DIRECTORY: os.path.join(_config_dir, "xcollection-cache"),
-}
+SETTINGS = {CACHE_DIRECTORY: os.path.join(_config_dir, "xcollection-cache")}
 
 for key in [CACHE_DIRECTORY]:
     os.makedirs(SETTINGS[key], exist_ok=True)
@@ -48,9 +47,7 @@ def _full_path(value):
     return os.path.abspath(os.path.expanduser(value))
 
 
-_VALIDATORS = {
-    CACHE_DIRECTORY: _check_path_write_access,
-}
+_VALIDATORS = {CACHE_DIRECTORY: _check_path_write_access}
 
 _SETTERS = {CACHE_DIRECTORY: _full_path}
 
@@ -62,7 +59,9 @@ class set_options(object):
         self.old = {}
         for key, val in kwargs.items():
             if key not in SETTINGS:
-                raise ValueError(f"{key} is not in the set of valid settings:\n {set(SETTINGS)}")
+                raise ValueError(
+                    f"{key} is not in the set of valid settings:\n {set(SETTINGS)}"
+                )
             if key in _VALIDATORS and not _VALIDATORS[key](val):
                 raise ValueError(f"{val} is not a valid value for {key}")
             self.old[key] = SETTINGS[key]

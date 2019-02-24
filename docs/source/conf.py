@@ -33,7 +33,24 @@ sys.path.insert(0, parent)
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ["sphinx.ext.autodoc", "sphinx.ext.viewcode"]
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.doctest",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.extlinks",
+    "numpydoc",
+    "IPython.sphinxext.ipython_console_highlighting",
+    "IPython.sphinxext.ipython_directive",
+    # "sphinx_copybutton",
+    # "recommonmark",
+    "nbsphinx",
+]
+
+extlinks = {
+    "issue": ("https://github.com/NCAR/xcollection/issues/%s", "GH#"),
+    "pr": ("https://github.com/NCAR/xcollection/pull/%s", "GH#"),
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -50,6 +67,7 @@ master_doc = "index"
 # General information about the project.
 project = u"xcollection"
 copyright = u"2019 onwards, NCAR"
+author = u"Earth System Informatics Team"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -102,7 +120,7 @@ pygments_style = "sphinx"
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "default"
+html_theme = "sphinx_rtd_theme"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -192,7 +210,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-    ("index", "xcollection.tex", u"xcollection Documentation", u"Matt Long", "manual")
+    ("index", "xcollection.tex", u"xcollection Documentation", author, "manual")
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -220,7 +238,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [("index", "xcollection", u"xcollection Documentation", [u"Matt Long"], 1)]
+man_pages = [("index", "xcollection", u"xcollection Documentation", [author], 1)]
 
 # If true, show URL addresses after external links.
 # man_show_urls = False
@@ -236,7 +254,7 @@ texinfo_documents = [
         "index",
         "xcollection",
         u"xcollection Documentation",
-        u"Matt Long",
+        author,
         "xcollection",
         "One line description of project.",
         "Miscellaneous",

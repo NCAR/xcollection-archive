@@ -1,5 +1,5 @@
 ============================
-Contribution getting started
+Contributing to xcollection
 ============================
 
 Contributions are highly welcomed and appreciated.  Every little help counts,
@@ -142,11 +142,6 @@ Preparing Pull Requests
     $ git commit -a -m "<commit message>"
     $ git push -u
 
-#. Create a new changelog entry in ``changelog``. The file should be named ``<issueid>.<type>``,
-   where *issueid* is the number of the issue related to the change and *type* is one of
-   ``bugfix``, ``removal``, ``feature``, ``doc`` or ``trivial``.
-
-#. Add yourself to ``AUTHORS`` file if not there yet, in alphabetical order.
 
 #. Finally, submit a pull request through the GitHub website using this data::
 
@@ -154,4 +149,4 @@ Preparing Pull Requests
     compare: your-branch-name
 
     base-fork: NCAR/xcollection
-    base: master          # if it's a bugfix or feature
+    base: master          

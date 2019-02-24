@@ -1,22 +1,19 @@
 from __future__ import absolute_import, division, print_function
 
-import os
-from subprocess import check_call
 import importlib
-import yaml
-
 import logging
-
+import os
 from datetime import datetime
-from tqdm import tqdm
+from subprocess import check_call
 
+import dask
+import esmlab
+import intake
 import numpy as np
 import pandas as pd
 import xarray as xr
-import dask
-
-import esmlab
-import intake
+import yaml
+from tqdm import tqdm
 
 from .config import SETTINGS, USER
 
@@ -136,7 +133,6 @@ class analyzed_collection(object):
         variables = self.catalog.results.variable.unique()
 
         self.cache_files = []
-        results = []
         for ens_i in ensembles:
             query["ensemble"] = ens_i
 
@@ -147,7 +143,6 @@ class analyzed_collection(object):
                 continue
 
             self._run_analysis_one_ensemble(query, variables, cache_file)
-
 
     def _run_analysis_one_ensemble(self, query, variables, cache_file):
 
@@ -160,13 +155,13 @@ class analyzed_collection(object):
             query_results = self._get_subset(query_v)
 
             # TODO: Check that this query is amenable to concatenation
-            
+
             files = query_results.files.tolist()
             year_offset = query_results.year_offset.unique()[0]
 
             # TODO: this is not implemented upstream in intake-cesm
             if "applied_methods" in query_results:
-                applied_methods = query_results.applied_methods.unique()[0].split(',')
+                applied_methods = query_results.applied_methods.unique()[0].split(",")
             else:
                 applied_methods = []
 
@@ -211,7 +206,8 @@ class analyzed_collection(object):
                 condition = condition & (df[key] == val)
 
         query_results = df.loc[condition].sort_values(
-            by=["sequence_order", "files"], ascending=True)
+            by=["sequence_order", "files"], ascending=True
+        )
 
         return query_results
 
@@ -237,13 +233,7 @@ class analyzed_collection(object):
 
     def _set_cache_file(self, ensemble, overwrite_existing):
 
-        cache_file = ".".join(
-            [
-                self.name,
-                "%03d" % ensemble,
-                self.file_format,
-            ]
-        )
+        cache_file = ".".join([self.name, "%03d" % ensemble, self.file_format])
 
         cache_file = os.path.join(self.cache_directory, cache_file)
 
@@ -270,7 +260,7 @@ class analyzed_collection(object):
             "history": f"created by {USER} on {time_string}",
             "xcollection_name": self.name,
             "xcollection_analysis": repr(self.analysis),
-            "xcollection_applied_methods": repr(self.applied_methods)
+            "xcollection_applied_methods": repr(self.applied_methods),
         }
 
         ds.attrs.update(dsattrs)
