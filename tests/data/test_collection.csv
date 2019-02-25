@@ -1,0 +1,3 @@
+,resource,resource_type,direct_access,experiment,case,component,stream,variable,date_range,ensemble,files,files_basename,files_dirname,ctrl_branch_year,year_offset,sequence_order,has_ocean_bgc,grid
+0,SAMPLE-DATA:posix:tests/data,posix,True,test_data,cesm_pop_sample,ocn,pop.h,NO3,000101-000212,0,tests/data/cesm_pop_sample.pop.h.NO3.000101-000212.nc,cesm_pop_sample.pop.h.NO3.000101-000212.nc,tests/data/,,1699,0,,POP_gx1v6
+1,SAMPLE-DATA:posix:tests/data,posix,True,test_data,cesm_pop_sample,ocn,pop.h,PO4,000101-000212,0,tests/data/cesm_pop_sample.pop.h.PO4.000101-000212.nc,cesm_pop_sample.pop.h.PO4.000101-000212.nc,tests/data/,,1699,0,,POP_gx1v6
