@@ -1,0 +1,9 @@
+monclim:
+  name: monclim
+  description: compute monthly climatology
+  operators:
+    - !!python/object:xcollection.operator
+      applied_method: 'time:clim_mon'
+      module: esmlab.climatology
+      function: compute_mon_climatology
+      kwargs: {}

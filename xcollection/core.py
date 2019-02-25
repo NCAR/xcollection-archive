@@ -20,22 +20,10 @@ from .config import SETTINGS, USER
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
 
-
-class yaml_operator(yaml.YAMLObject):
-    """A wrapper used for defining callable functions in YAML.
-
-    For example:
-    !operator
-    applied_methods: ['time:clim_mon']
-    module: esmlab.climatology
-    function: compute_mon_climatology
-    kwargs: {}
-    """
-
-    yaml_tag = "!operator"
-
-    def __init__(self, applied_method, module, function, kwargs):
+class operator(object):
+    def __init__(self, function, applied_method=None, module=None, kwargs={}):
         """Initialize attributes"""
+
         self.applied_method = applied_method
         self.module = module
         self.function = function
@@ -51,7 +39,6 @@ class yaml_operator(yaml.YAMLObject):
             val, **self.kwargs
         )
 
-
 class analysis(object):
     """
     A class to define and run an analysis.
@@ -62,20 +49,11 @@ class analysis(object):
         self.name = kwargs.pop("name")
         self.description = kwargs.pop("description", None)
         self.operators = kwargs.pop("operators", None)
-        self.sel_kwargs = kwargs.pop("sel_kwargs", None)
-        self.isel_kwargs = kwargs.pop("isel_kwargs", None)
 
     def __call__(self, dset, dsrc_applied_methods):
+        """exucute sequence of operations defining an analysis.
+        """
         computed_dset = dset.copy()
-
-        if self.sel_kwargs:
-            logger.info(f"applying sel_kwargs: {self.sel_kwargs}")
-            computed_dset = computed_dset.sel(**self.sel_kwargs)
-
-        if self.isel_kwargs:
-            logger.info(f"applying isel_kwargs: {self.isel_kwargs}")
-            computed_dset = computed_dset.isel(**self.isel_kwargs)
-
         applied_methods = []
         for op in self.operators:
             if op.applied_method not in dsrc_applied_methods:
@@ -102,14 +80,19 @@ class analyzed_collection(object):
         analysis_name=None,
         overwrite_existing=False,
         file_format="nc",
+        xr_open_kwargs=dict(decode_times=False, decode_coords=False),
         **query,
     ):
 
         col_obj = intake.open_cesm_metadatastore(collection)
         self.catalog = col_obj.search(**query)
         self.analysis = analysis(**analysis_recipe)
-        self.applied_methods = []
         self.cache_directory = SETTINGS["cache_directory"]
+        self._ds_open_kwargs = xr_open_kwargs
+
+        self.applied_methods = []
+        self.variables = None
+        self.ensembles = None
 
         if file_format not in ["nc", "zarr"]:
             raise ValueError(f"unknown file format: {file_format}")
@@ -129,11 +112,11 @@ class analyzed_collection(object):
         """Process data"""
 
         query = dict(self.catalog.query)
-        ensembles = self.catalog.results.ensemble.unique()
-        variables = self.catalog.results.variable.unique()
+        self.ensembles = self.catalog.results.ensemble.unique()
+        self.variables = self.catalog.results.variable.unique()
 
         self.cache_files = []
-        for ens_i in ensembles:
+        for ens_i in self.ensembles:
             query["ensemble"] = ens_i
 
             cache_file = self._set_cache_file(ens_i, overwrite_existing)
@@ -142,14 +125,14 @@ class analyzed_collection(object):
             if os.path.exists(cache_file):
                 continue
 
-            self._run_analysis_one_ensemble(query, variables, cache_file)
+            self._run_analysis_one_ensemble(query, cache_file)
 
-    def _run_analysis_one_ensemble(self, query, variables, cache_file):
+    def _run_analysis_one_ensemble(self, query, cache_file):
 
         query_v = dict(query)
 
         dsi = xr.Dataset()
-        for var_i in variables:
+        for var_i in self.variables:
             query_v["variable"] = var_i
 
             query_results = self._get_subset(query_v)
@@ -170,20 +153,17 @@ class analyzed_collection(object):
                     dsi,
                     xr.open_mfdataset(
                         files,
-                        decode_times=False,
-                        decode_coords=False,
                         data_vars=[var_i],
                         parallel=True,
                         chunks={"time": 1},
+                        **self._ds_open_kwargs,
                     ),
                 )
             )
 
         # apply the analysis
-        dso = self._fixtime(dsi, year_offset)
-        dso, applied_methods = self.analysis(dso, applied_methods)
+        dso, applied_methods = self.analysis(dsi, applied_methods)
         self.applied_methods.append(applied_methods)
-        dso = self._unfixtime(dso)
 
         # write cache file
         self._write_cache_file(cache_file, dso)
@@ -218,16 +198,16 @@ class analyzed_collection(object):
         for f in self.cache_files:
             ds_list.append(self._open_cache_file(f))
 
-        return xr.concat(ds_list, dim="ens")  # , data_vars=[self.variable])
+        return xr.concat(ds_list, dim="ens", data_vars=self.variables)
 
     def _open_cache_file(self, filename):
         """Open a dataset using appropriate method."""
 
         if self.file_format == "nc":
-            ds = xr.open_mfdataset(filename, decode_coords=False, chunks={"time": 1})
+            ds = xr.open_mfdataset(filename, chunks={"time": 1}, **self._ds_open_kwargs)
 
         elif self.file_format == "zarr":
-            ds = xr.open_zarr(filename, decode_coords=False)
+            ds = xr.open_zarr(filename, **self._ds_open_kwargs)
 
         return ds
 
@@ -273,15 +253,3 @@ class analyzed_collection(object):
             ds.to_zarr(cache_file)
 
         return cache_file
-
-    def _fixtime(self, dsi, year_offset):
-        tb_name, tb_dim = esmlab.utils.time.time_bound_var(dsi, "time")
-        if tb_name and tb_dim:
-            return esmlab.utils.time.compute_time_var(
-                dsi, tb_name, tb_dim, "time", year_offset=year_offset
-            )
-        else:
-            return dsi
-
-    def _unfixtime(self, dsi):
-        return esmlab.utils.time.uncompute_time_var(dsi, "time")

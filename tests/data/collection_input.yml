@@ -1,0 +1,14 @@
+test_collection:
+  type: cesm
+  data_sources:
+    test_data:
+      locations:
+        - name: SAMPLE-DATA
+          type: posix
+          direct_access: True
+          urlpath: tests/data
+      component_attrs:
+        ocn: {grid: POP_gx1v6}
+      case_members:
+        - case: cesm_pop_sample
+          year_offset: 1699
