@@ -84,7 +84,7 @@ class analyzed_collection(object):
         **query,
     ):
 
-        col_obj = intake.open_cesm_metadatastore(collection_name=collection)
+        col_obj = intake.open_cesm_metadatastore(collection)
         self.catalog = col_obj.search(**query)
         self.analysis = analysis(**analysis_recipe)
         self.cache_directory = SETTINGS['cache_directory']
