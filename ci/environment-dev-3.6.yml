@@ -2,32 +2,33 @@ name: xcollection-dev
 channels:
   - conda-forge
 dependencies:
-  - python=3.6
-  - numpy
-  - xarray
-  - netcdf4
-  - zarr
+  - autopep8
+  - black
+  - codecov
+  - coverage
   - dask
   - distributed
-  - autopep8
-  - flake8
-  - black
-  - isort
-  - pytest
-  - coverage
-  - pytest-cov
-  - codecov
-  - sphinx>=1.6
-  - sphinx_rtd_theme
-  - recommonmark
-  - numpydoc
-  - nbsphinx
-  - ipykernel
-  - xesmf
   - esmpy
-  - intake-xarray
+  - flake8
+  - git
   - intake
+  - intake-xarray
+  - ipykernel
+  - isort
+  - nbsphinx
+  - netcdf4
+  - numpy
+  - numpydoc
+  - pytest
+  - pytest-cov
+  - python=3.6
+  - recommonmark
+  - sphinx_rtd_theme
+  - sphinx>=1.6
   - tqdm
+  - xarray
+  - xesmf
+  - zarr
   - pip:
     - sphinx_copybutton
     - git+https://github.com/NCAR/esmlab.git
