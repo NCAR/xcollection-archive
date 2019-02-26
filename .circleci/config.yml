@@ -36,6 +36,13 @@ jobs:
             source activate ${ENV_NAME}
             pytest --junitxml=test-reports/junit.xml --cov=./ --verbose
 
+      - run:
+          name: Code Coverage
+          command: |
+            source activate ${ENV_NAME}
+            echo "[Upload coverage]"
+            codecov
+
       - save_cache:
           key: deps-3.6
           paths:
@@ -72,6 +79,13 @@ jobs:
           command: |
             source activate ${ENV_NAME}
             pytest --junitxml=test-reports/junit.xml --cov=./
+
+      - run:
+          name: Code Coverage
+          command: |
+            source activate ${ENV_NAME}
+            echo "[Upload coverage]"
+            codecov
 
 
       # Cache some files for a speedup in subsequent builds
