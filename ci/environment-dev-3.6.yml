@@ -19,7 +19,7 @@ dependencies:
   - codecov
   - sphinx>=1.6
   - sphinx_rtd_theme
-  - recommonmark 
+  - recommonmark
   - numpydoc
   - nbsphinx
   - ipykernel
@@ -31,4 +31,4 @@ dependencies:
   - pip:
     - sphinx_copybutton
     - git+https://github.com/NCAR/esmlab.git
-
+    - git+https://github.com/NCAR/intake-esm.git
