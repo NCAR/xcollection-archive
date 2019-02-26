@@ -8,20 +8,20 @@ import os
 
 import yaml
 
-if "USER" in os.environ:
-    USER = os.environ["USER"]
+if 'USER' in os.environ:
+    USER = os.environ['USER']
 else:
-    USER = "unknown-user"
+    USER = 'unknown-user'
 
-CACHE_DIRECTORY = "cache_directory"
+CACHE_DIRECTORY = 'cache_directory'
 
-_config_dir = os.path.join(os.path.expanduser("~"), ".xcollection")
-_path_config_yml = os.path.join(_config_dir, "config.yml")
+_config_dir = os.path.join(os.path.expanduser('~'), '.xcollection')
+_path_config_yml = os.path.join(_config_dir, 'config.yml')
 
-if os.path.exists(".config-xcollection.yml"):
-    _path_config_yml = os.path.join(".config-xcollection.yml")
+if os.path.exists('.config-xcollection.yml'):
+    _path_config_yml = os.path.join('.config-xcollection.yml')
 
-SETTINGS = {CACHE_DIRECTORY: os.path.join(_config_dir, "xcollection-cache")}
+SETTINGS = {CACHE_DIRECTORY: os.path.join(_config_dir, 'xcollection-cache')}
 
 for key in [CACHE_DIRECTORY]:
     os.makedirs(SETTINGS[key], exist_ok=True)
@@ -31,7 +31,7 @@ def _check_path_write_access(value):
     value = os.path.abspath(os.path.expanduser(value))
     if os.path.exists(value):
         if not os.access(value, os.W_OK):
-            print(f"no write access to: {value}")
+            print(f'no write access to: {value}')
             return False
         return True
 
@@ -39,7 +39,7 @@ def _check_path_write_access(value):
         os.makedirs(value)
         return True
     except (OSError, PermissionError) as err:
-        print(f"could not make directory: {value}")
+        print(f'could not make directory: {value}')
         raise err
 
 
@@ -59,11 +59,9 @@ class set_options(object):
         self.old = {}
         for key, val in kwargs.items():
             if key not in SETTINGS:
-                raise ValueError(
-                    f"{key} is not in the set of valid settings:\n {set(SETTINGS)}"
-                )
+                raise ValueError(f'{key} is not in the set of valid settings:\n {set(SETTINGS)}')
             if key in _VALIDATORS and not _VALIDATORS[key](val):
-                raise ValueError(f"{val} is not a valid value for {key}")
+                raise ValueError(f'{val} is not a valid value for {key}')
             self.old[key] = SETTINGS[key]
         self._apply_update(kwargs)
 
