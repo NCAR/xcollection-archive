@@ -253,15 +253,3 @@ class analyzed_collection(object):
             ds.to_zarr(cache_file)
 
         return cache_file
-
-    def _fixtime(self, dsi, year_offset):
-        tb_name, tb_dim = esmlab.utils.time.time_bound_var(dsi, 'time')
-        if tb_name and tb_dim:
-            return esmlab.utils.time.compute_time_var(
-                dsi, tb_name, tb_dim, 'time', year_offset=year_offset
-            )
-        else:
-            return dsi
-
-    def _unfixtime(self, dsi):
-        return esmlab.utils.time.uncompute_time_var(dsi, 'time')
