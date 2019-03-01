@@ -1,14 +1,16 @@
-test_collection:
-  type: cesm
-  data_sources:
-    test_data:
-      locations:
-        - name: SAMPLE-DATA
-          type: posix
-          direct_access: True
-          urlpath: tests/data
-      component_attrs:
-        ocn: {grid: POP_gx1v6}
-      case_members:
-        - case: cesm_pop_sample
-          year_offset: 1699
+name: test_collection
+collection_type: cesm
+overwrite_existing: True
+include_cache_dir: False
+data_sources:
+  test_data:
+    locations:
+      - name: SAMPLE-DATA
+        loc_type: posix
+        direct_access: True
+        urlpath: tests/data
+    component_attrs:
+      ocn: {grid: POP_gx1v6}
+    case_members:
+      - case: cesm_pop_sample
+        year_offset: 1699

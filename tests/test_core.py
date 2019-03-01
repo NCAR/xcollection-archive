@@ -1,5 +1,9 @@
 import xarray as xr
 import yaml
+
+import intake
+import intake_esm
+
 from esmlab.climatology import compute_mon_climatology
 
 from xcollection import analyzed_collection, operator
@@ -21,8 +25,9 @@ def test_analyzed_collection():
 
     query = dict(case='cesm_pop_sample', variable='NO3')
 
+    col_obj = intake.open_esm_metadatastore(collection_input_file='tests/data/collection_input.yml')
     dc = analyzed_collection(
-        collection='test_collection',
+        collection_obj=col_obj,
         analysis_recipe=recipe,
         overwrite_existing=True,
         file_format='nc',

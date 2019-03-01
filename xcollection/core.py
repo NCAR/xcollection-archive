@@ -75,7 +75,7 @@ class analyzed_collection(object):
 
     def __init__(
         self,
-        collection,
+        collection_obj,
         analysis_recipe,
         analysis_name=None,
         overwrite_existing=False,
@@ -84,8 +84,7 @@ class analyzed_collection(object):
         **query,
     ):
 
-        col_obj = intake.open_cesm_metadatastore(collection)
-        self.catalog = col_obj.search(**query)
+        self.catalog = collection_obj.search(**query)
         self.analysis = analysis(**analysis_recipe)
         self.cache_directory = SETTINGS['cache_directory']
         self._ds_open_kwargs = xr_open_kwargs
@@ -253,15 +252,3 @@ class analyzed_collection(object):
             ds.to_zarr(cache_file)
 
         return cache_file
-
-    def _fixtime(self, dsi, year_offset):
-        tb_name, tb_dim = esmlab.utils.time.time_bound_var(dsi, 'time')
-        if tb_name and tb_dim:
-            return esmlab.utils.time.compute_time_var(
-                dsi, tb_name, tb_dim, 'time', year_offset=year_offset
-            )
-        else:
-            return dsi
-
-    def _unfixtime(self, dsi):
-        return esmlab.utils.time.uncompute_time_var(dsi, 'time')
