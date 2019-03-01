@@ -75,7 +75,7 @@ class analyzed_collection(object):
 
     def __init__(
         self,
-        collection,
+        collection_obj,
         analysis_recipe,
         analysis_name=None,
         overwrite_existing=False,
@@ -84,8 +84,7 @@ class analyzed_collection(object):
         **query,
     ):
 
-        col_obj = intake.open_cesm_metadatastore(collection)
-        self.catalog = col_obj.search(**query)
+        self.catalog = collection_obj.search(**query)
         self.analysis = analysis(**analysis_recipe)
         self.cache_directory = SETTINGS['cache_directory']
         self._ds_open_kwargs = xr_open_kwargs
