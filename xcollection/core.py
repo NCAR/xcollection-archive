@@ -1,8 +1,11 @@
 from __future__ import absolute_import, division, print_function
 
+import os
 import importlib
 import logging
-import os
+
+import copy
+
 from datetime import datetime
 from subprocess import check_call
 
@@ -84,7 +87,10 @@ class analyzed_collection(object):
         **query,
     ):
 
-        self.catalog = collection_obj.search(**query)
+        self.collection = collection_obj
+        self.query = query
+        self.catalog = self.collection.search(**self.query)
+
         self.analysis = analysis(**analysis_recipe)
         self.cache_directory = SETTINGS['cache_directory']
         self._ds_open_kwargs = xr_open_kwargs
@@ -110,7 +116,7 @@ class analyzed_collection(object):
     def _run_analysis(self, overwrite_existing):
         """Process data"""
 
-        query = dict(self.catalog.query)
+        query = copy.deepcopy(self.query)
         self.ensembles = self.catalog.results.ensemble.unique()
         self.variables = self.catalog.results.variable.unique()
 
@@ -124,71 +130,20 @@ class analyzed_collection(object):
             if os.path.exists(cache_file):
                 continue
 
-            self._run_analysis_one_ensemble(query, cache_file)
-
-    def _run_analysis_one_ensemble(self, query, cache_file):
-
-        query_v = dict(query)
-
-        dsi = xr.Dataset()
-        for var_i in self.variables:
-            query_v['variable'] = var_i
-
-            query_results = self._get_subset(query_v)
-
-            # TODO: Check that this query is amenable to concatenation
-
-            files = query_results.files.tolist()
-            # year_offset = query_results.year_offset.unique()[0]
-
-            # TODO: this is not implemented upstream in intake-cesm
-            if 'applied_methods' in query_results:
-                applied_methods = query_results.applied_methods.unique()[0].split(',')
+            catalog_subset = self.collection.search(**query)
+            query_df = catalog_subset.results
+            dsi = catalog_subset.to_xarray()
+            # TODO: this is not implemented upstream in intake-esm
+            if 'applied_methods' in query_df:
+                applied_methods = query_df.applied_methods.unique()[0].split(',')
             else:
                 applied_methods = []
 
-            dsi = xr.merge(
-                (
-                    dsi,
-                    xr.open_mfdataset(
-                        files,
-                        data_vars=[var_i],
-                        parallel=True,
-                        chunks={'time': 1},
-                        **self._ds_open_kwargs,
-                    ),
-                )
-            )
+            dso, applied_methods = self.analysis(dsi, applied_methods)
+            self.applied_methods.append(applied_methods)
+            # write cache file
+            self._write_cache_file(cache_file, dso)
 
-        # apply the analysis
-        dso, applied_methods = self.analysis(dsi, applied_methods)
-        self.applied_methods.append(applied_methods)
-
-        # write cache file
-        self._write_cache_file(cache_file, dso)
-
-    def _get_subset(self, query):
-        """ Get a subset of collection entries that match a query """
-        df = self.catalog.results
-
-        condition = np.ones(len(df), dtype=bool)
-
-        for key, val in query.items():
-
-            if isinstance(val, list):
-                condition_i = np.zeros(len(df), dtype=bool)
-                for val_i in val:
-                    condition_i = condition_i | (df[key] == val_i)
-                condition = condition & condition_i
-
-            elif val is not None:
-                condition = condition & (df[key] == val)
-
-        query_results = df.loc[condition].sort_values(
-            by=['sequence_order', 'files'], ascending=True
-        )
-
-        return query_results
 
     def to_xarray(self):
         """Load the cached data."""

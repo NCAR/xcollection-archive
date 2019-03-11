@@ -23,7 +23,7 @@ def test_analyzed_collection():
         ],
     }
 
-    query = dict(case='cesm_pop_sample', variable='NO3')
+    query = dict(case='cesm_pop_sample', variable=['NO3', 'PO4'])
 
     col_obj = intake.open_esm_metadatastore(collection_input_file='tests/data/collection_input.yml')
     dc = analyzed_collection(
