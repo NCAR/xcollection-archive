@@ -117,8 +117,8 @@ class analyzed_collection(object):
         """Process data"""
 
         query = copy.deepcopy(self.query)
-        self.ensembles = self.catalog.results.ensemble.unique()
-        self.variables = self.catalog.results.variable.unique()
+        self.ensembles = self.catalog.query_results.ensemble.unique()
+        self.variables = self.catalog.query_results.variable.unique()
 
         self.cache_files = []
         for ens_i in self.ensembles:
@@ -131,7 +131,7 @@ class analyzed_collection(object):
                 continue
 
             catalog_subset = self.collection.search(**query)
-            query_df = catalog_subset.results
+            query_df = catalog_subset.query_results
             dsi = catalog_subset.to_xarray()
             # TODO: this is not implemented upstream in intake-esm
             if 'applied_methods' in query_df:
