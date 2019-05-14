@@ -127,6 +127,11 @@ class analyzed_collection(object):
             catalog_subset = self.collection.search(**query)
             query_df = catalog_subset.query_results
             dsi = catalog_subset.to_xarray()
+
+            # this should be in intake-esm, but it's not
+            non_dim_coords_reset = set(dsi.coords) - set(dsi.dims)
+            dsi = dsi.reset_coords(non_dim_coords_reset)
+            
             # TODO: this is not implemented upstream in intake-esm
             if 'applied_methods' in query_df:
                 applied_methods = query_df.applied_methods.unique()[0].split(',')
